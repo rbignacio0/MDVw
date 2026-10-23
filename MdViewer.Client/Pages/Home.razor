@@ -1,0 +1,694 @@
+﻿@page "/"
+@using Ganss.Xss
+@using Markdig
+@implements IDisposable
+@inject IJSRuntime JS
+
+<PageTitle>Markdown Library</PageTitle>
+
+<div class="viewer-shell">
+    <aside class="explorer" aria-label="Markdown document explorer">
+        <div class="explorer-heading">
+            <div class="brand-mark" aria-hidden="true">M</div>
+            <div>
+                <p class="eyebrow">LOCAL LIBRARY</p>
+                <h1>Markdown</h1>
+            </div>
+        </div>
+
+        <button id="choose-folder" class="choose-folder" type="button">
+            <span aria-hidden="true">+</span>
+            Choose a folder
+        </button>
+        <p class="privacy-note">Files are read in this browser and are not uploaded.</p>
+
+        @if (!string.IsNullOrWhiteSpace(_folderName))
+        {
+            <div class="folder-label" title="@_folderName">
+                <span aria-hidden="true">▾</span>
+                <span>@_folderName</span>
+                <span class="document-count">@FilteredDocuments.Count()</span>
+            </div>
+
+            @if (_documents.Count > 0)
+            {
+                <div class="search-box">
+                    <span aria-hidden="true">⌕</span>
+                    <input type="search"
+                           id="document-filter"
+                           placeholder="Filter documents"
+                           aria-label="Filter documents by name"
+                           @bind="_filter"
+                           @bind:event="oninput"
+                           @bind:after="FilterChangedAsync"
+                           @onkeydown:stopPropagation="true" />
+                    @if (!string.IsNullOrEmpty(_filter))
+                    {
+                        <button type="button" class="clear-filter" aria-label="Clear filter" @onclick="ClearFilterAsync">×</button>
+                    }
+                </div>
+            }
+        }
+
+        <div class="document-list" id="document-list" tabindex="0" aria-label="Documents">
+            @if (_folderName is null)
+            {
+                <div class="list-empty">
+                    <span class="empty-icon" aria-hidden="true">▤</span>
+                    <p>Choose a folder to see your Markdown files.</p>
+                </div>
+            }
+            else if (_documents.Count == 0)
+            {
+                <div class="list-empty">
+                    <span class="empty-icon" aria-hidden="true">∅</span>
+                    <p>No Markdown files found in this folder.</p>
+                </div>
+            }
+            else if (!FilteredDocuments.Any())
+            {
+                <div class="list-empty">
+                    <p>No documents match “@_filter”.</p>
+                </div>
+            }
+            else
+            {
+                @foreach (var document in FilteredDocuments)
+                {
+                    var isSelected = document.Path == _selectedPath;
+                    <button @key="document.Path"
+                            type="button"
+                            class="document-row @(isSelected ? "selected" : string.Empty)"
+                            tabindex="-1"
+                            data-document-row
+                            aria-current="@(isSelected ? "page" : null)"
+                            title="@document.Path"
+                            @onclick="() => SelectDocumentAsync(document)">
+                        <span class="file-icon" aria-hidden="true">M↓</span>
+                        <span class="document-label">
+                            <span class="document-name">@document.Name</span>
+                            <span class="document-path">@document.ParentPath</span>
+                        </span>
+                    </button>
+                }
+            }
+        </div>
+
+        <div class="explorer-footer">
+            <span class="status-dot" aria-hidden="true"></span>
+            <span>Browser-local reading</span>
+        </div>
+    </aside>
+
+    <main class="reading-area">
+        <header class="reading-toolbar">
+            @if (_selectedDocument is not null)
+            {
+                <div class="breadcrumb" title="@_selectedDocument.Path">
+                    <span>@_folderName</span>
+                    <span class="breadcrumb-separator">/</span>
+                    <strong>@_selectedDocument.Path</strong>
+                </div>
+                <div class="reader-actions">
+                    <div class="mode-switch" role="group" aria-label="Document mode">
+                        <button type="button" class="@(!_sourceMode ? "active" : string.Empty)" aria-pressed="@(!_sourceMode)" @onclick="() => SetSourceModeAsync(false)">Preview</button>
+                        <button type="button" class="@(_sourceMode ? "active" : string.Empty)" aria-pressed="@_sourceMode" @onclick="() => SetSourceModeAsync(true)">Source</button>
+                    </div>
+                    <button type="button" class="toolbar-action" title="Search in document (Ctrl+F)" aria-label="Search in document" @onclick="OpenSearchAsync">⌕</button>
+                    <button type="button" class="toolbar-action zoom-action" title="Decrease reading size (Ctrl+-)" aria-label="Decrease reading size" @onclick="() => ChangeZoomAsync(-10)">−</button>
+                    <span class="zoom-level">@_zoom%</span>
+                    <button type="button" class="toolbar-action zoom-action" title="Increase reading size (Ctrl++)" aria-label="Increase reading size" @onclick="() => ChangeZoomAsync(10)">+</button>
+                    <a id="download-copy" class="toolbar-action" href="#" download="@_selectedDocument.Name" title="Download a Markdown copy (Ctrl+S)" aria-label="Download Markdown copy">↓</a>
+                    <button type="button" class="toolbar-action print-action" title="Print (Ctrl+P)" aria-label="Print document" @onclick="PrintAsync">⎙</button>
+                </div>
+            }
+            else
+            {
+                <span class="toolbar-caption">READER</span>
+            }
+        </header>
+
+        @if (_error is not null)
+        {
+            <div class="notice notice-error" role="alert">
+                <span>@_error</span>
+                <button type="button" aria-label="Dismiss message" @onclick="DismissError">×</button>
+            </div>
+        }
+        @if (_notice is not null)
+        {
+            <div class="notice" role="status">@_notice</div>
+        }
+
+        @if (_searchOpen && _selectedDocument is not null && !_sourceMode)
+        {
+            <div class="document-search">
+                <span aria-hidden="true">⌕</span>
+                <input id="document-search"
+                       type="search"
+                       placeholder="Find in this document"
+                       aria-label="Find in current document"
+                       @bind="_searchQuery"
+                       @bind:event="oninput"
+                       @bind:after="SearchChangedAsync"
+                       @onkeydown="HandleSearchKeyDown" />
+                <span class="search-count">@(_searchCount == 0 ? "No matches" : $"{_searchIndex} / {_searchCount}")</span>
+                <button type="button" aria-label="Previous match" title="Previous match (Shift+F3)" @onclick="() => NavigateSearchAsync(-1)">↑</button>
+                <button type="button" aria-label="Next match" title="Next match (F3)" @onclick="() => NavigateSearchAsync(1)">↓</button>
+                <button type="button" aria-label="Close search" title="Close search (Esc)" @onclick="CloseSearchAsync">×</button>
+            </div>
+        }
+
+        <div class="reader-scroll" id="reader-scroll" tabindex="0" aria-label="Markdown document">
+            @if (_selectedDocument is not null)
+            {
+                @if (_sourceMode)
+                {
+                    <textarea class="source-editor"
+                              aria-label="Edit Markdown source"
+                              spellcheck="false"
+                              @bind="_editingSource"
+                              @bind:event="oninput"
+                              @onkeydown:stopPropagation="true"></textarea>
+                }
+                else
+                {
+                    <article class="markdown-document">
+                        @((MarkupString)_renderedMarkdown)
+                    </article>
+                }
+            }
+            else
+            {
+                <section class="welcome">
+                    <div class="welcome-symbol" aria-hidden="true">M</div>
+                    <p class="eyebrow">A CALMER WAY TO READ</p>
+                    <h2>Your Markdown,<br />one document at a time.</h2>
+                    <p class="welcome-copy">Choose a folder to build your reading list. Use the arrow keys to move through documents, or select one from the explorer.</p>
+                    <button id="welcome-choose-folder" class="welcome-action" type="button">Choose a folder <span aria-hidden="true">→</span></button>
+                    <p class="keyboard-help"><kbd>↑</kbd><kbd>↓</kbd> next / previous <span>·</span> <kbd>PgUp</kbd><kbd>PgDn</kbd> jump a page <span>·</span> <kbd>Home</kbd><kbd>End</kbd> first / last</p>
+                </section>
+            }
+        </div>
+    </main>
+</div>
+
+@if (_folderAccessTitle is not null)
+{
+    <div class="folder-access-backdrop">
+        <section class="folder-access-dialog"
+                 role="alertdialog"
+                 aria-modal="true"
+                 aria-labelledby="folder-access-title"
+                 aria-describedby="folder-access-reason">
+            <div class="folder-access-icon" aria-hidden="true">!</div>
+            <p class="eyebrow">FOLDER ACCESS</p>
+            <h2 id="folder-access-title">@_folderAccessTitle</h2>
+            <p id="folder-access-reason">@_folderAccessReason</p>
+            <div class="folder-access-tip">
+                <strong>What you can try</strong>
+                <span>Choose a regular folder you own, such as Documents or Downloads. Avoid Windows, application, and other protected system folders. If access should be allowed, check your browser and operating-system privacy permissions.</span>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(_folderAccessDetail))
+            {
+                <details class="folder-access-details">
+                    <summary>Browser details</summary>
+                    <p>@_folderAccessDetail</p>
+                </details>
+            }
+            <button class="folder-access-close" type="button" @onclick="DismissFolderAccessError">Got it</button>
+        </section>
+    </div>
+}
+
+@code {
+    private static readonly MarkdownPipeline MarkdownPipeline = new MarkdownPipelineBuilder()
+        .DisableHtml()
+        .UseAdvancedExtensions()
+        .Build();
+    private readonly Dictionary<string, double> _scrollPositions = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> _editedSources = new(StringComparer.Ordinal);
+    private List<MarkdownDocument> _documents = [];
+    private DotNetObjectReference<Home>? _dotNetReference;
+    private Dictionary<string, string> _imageUrls = new(StringComparer.OrdinalIgnoreCase);
+    private bool _sourceMode;
+    private bool _searchOpen;
+    private string _searchQuery = string.Empty;
+    private int _searchCount;
+    private int _searchIndex;
+    private int _zoom = 100;
+    private string _editingSource = string.Empty;
+    private bool _readerNeedsRefresh;
+    private bool _focusSearchOnRender;
+    private string? _folderName;
+    private string? _selectedPath;
+    private string? _error;
+    private string? _notice;
+    private string? _folderAccessTitle;
+    private string? _folderAccessReason;
+    private string? _folderAccessDetail;
+    private string _filter = string.Empty;
+    private string _renderedMarkdown = string.Empty;
+    private string? _pendingScrollPath;
+    private bool _focusSelectedOnRender;
+
+    private IEnumerable<MarkdownDocument> FilteredDocuments =>
+        _documents.Where(document =>
+            document.Name.Contains(_filter, StringComparison.OrdinalIgnoreCase) ||
+            document.Path.Contains(_filter, StringComparison.OrdinalIgnoreCase));
+
+    private MarkdownDocument? _selectedDocument =>
+        _selectedPath is null ? null : _documents.FirstOrDefault(document => document.Path == _selectedPath);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _dotNetReference = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("markdownViewer.attach", _dotNetReference);
+            await JS.InvokeVoidAsync("markdownViewer.setZoom", _zoom);
+        }
+
+        if (_pendingScrollPath is not null)
+        {
+            var path = _pendingScrollPath;
+            _pendingScrollPath = null;
+            var scrollTop = _scrollPositions.GetValueOrDefault(path);
+            await JS.InvokeVoidAsync("markdownViewer.setReaderScrollTop", scrollTop);
+            await JS.InvokeVoidAsync("markdownViewer.scrollSelectedIntoView");
+        }
+
+        if (_readerNeedsRefresh && _selectedDocument is not null)
+        {
+            _readerNeedsRefresh = false;
+            await JS.InvokeVoidAsync(
+                "markdownViewer.updateMarkdownDownload",
+                _selectedDocument.Name,
+                CurrentSource);
+            if (_sourceMode)
+            {
+                await JS.InvokeVoidAsync("markdownViewer.clearSearch");
+            }
+            else
+            {
+                await JS.InvokeVoidAsync(
+                    "markdownViewer.configureDocument",
+                    _selectedDocument.Path,
+                    _imageUrls.Select(image => new { Path = image.Key, Url = image.Value }).ToArray(),
+                    _documents.Select(document => document.Path).ToArray());
+                if (_searchOpen && !string.IsNullOrWhiteSpace(_searchQuery))
+                {
+                    _searchCount = await JS.InvokeAsync<int>("markdownViewer.search", _searchQuery);
+                    _searchIndex = _searchCount > 0 ? 1 : 0;
+                    await InvokeAsync(StateHasChanged);
+                }
+            }
+        }
+
+        if (!string.IsNullOrEmpty(_pendingFragment))
+        {
+            await JS.InvokeVoidAsync("markdownViewer.scrollToFragment", _pendingFragment);
+            _pendingFragment = null;
+        }
+
+        if (_focusSelectedOnRender)
+        {
+            _focusSelectedOnRender = false;
+            await JS.InvokeVoidAsync("markdownViewer.focusSelectedDocument");
+        }
+
+        if (_focusSearchOnRender)
+        {
+            _focusSearchOnRender = false;
+            await JS.InvokeVoidAsync("markdownViewer.focusSearch");
+        }
+    }
+
+    [JSInvokable]
+    public async Task ReceiveFiles(string folderName, List<PickedMarkdownFile> files, List<PickedMarkdownAsset> images)
+    {
+        _editedSources.Clear();
+        _imageUrls = images.ToDictionary(image => image.Path.Replace('\\', '/'), image => image.Url, StringComparer.OrdinalIgnoreCase);
+        _selectedPath = null;
+        _renderedMarkdown = string.Empty;
+        _pendingScrollPath = null;
+        _folderName = folderName;
+        _filter = string.Empty;
+        _sourceMode = false;
+        _searchOpen = false;
+        _searchQuery = string.Empty;
+        _searchCount = 0;
+        _searchIndex = 0;
+        _error = null;
+        _notice = null;
+        _scrollPositions.Clear();
+        _readerNeedsRefresh = false;
+        _documents = files
+            .Where(file => IsMarkdownPath(file.Path))
+            .Select(file => new MarkdownDocument(
+                file.Path.Replace('\\', '/'),
+                GetName(file.Path),
+                GetParentPath(file.Path),
+                file.Content))
+            .OrderBy(document => document.Path, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (_documents.Count == 0)
+        {
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        _notice = $"{_documents.Count:N0} Markdown document{(_documents.Count == 1 ? string.Empty : "s")} ready";
+        await SelectDocumentAsync(_documents[0], saveScroll: false);
+        _readerNeedsRefresh = true;
+        await InvokeAsync(StateHasChanged);
+        await JS.InvokeVoidAsync("markdownViewer.focusExplorer");
+    }
+
+    [JSInvokable]
+    public async Task ReportPickerError(string message)
+    {
+        _error = message;
+        _notice = null;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public async Task ReportFolderAccessError(string title, string reason, string detail)
+    {
+        _folderAccessTitle = title;
+        _folderAccessReason = reason;
+        _folderAccessDetail = detail;
+        _error = null;
+        _notice = null;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public async Task HandleExplorerKey(string key, int visibleRows)
+    {
+        var documents = FilteredDocuments.ToList();
+        if (documents.Count == 0)
+        {
+            return;
+        }
+
+        var currentIndex = documents.FindIndex(document => document.Path == _selectedPath);
+        var targetIndex = currentIndex < 0 ? 0 : currentIndex;
+        var pageSize = Math.Max(1, visibleRows);
+
+        switch (key)
+        {
+            case "ArrowDown":
+                targetIndex = Math.Min(documents.Count - 1, targetIndex + 1);
+                break;
+            case "ArrowUp":
+                targetIndex = Math.Max(0, targetIndex - 1);
+                break;
+            case "PageDown":
+                targetIndex = Math.Min(documents.Count - 1, targetIndex + pageSize);
+                break;
+            case "PageUp":
+                targetIndex = Math.Max(0, targetIndex - pageSize);
+                break;
+            case "Home":
+                targetIndex = 0;
+                break;
+            case "End":
+                targetIndex = documents.Count - 1;
+                break;
+            case "Enter":
+                break;
+            default:
+                return;
+        }
+
+        _focusSelectedOnRender = key != "Enter";
+        await SelectDocumentAsync(documents[targetIndex]);
+    }
+
+    [JSInvokable]
+    public async Task NavigateToDocument(string path, string fragment)
+    {
+        var document = _documents.FirstOrDefault(candidate =>
+            string.Equals(candidate.Path, path, StringComparison.OrdinalIgnoreCase));
+        if (document is null)
+        {
+            return;
+        }
+
+        await SetSourceModeAsync(false);
+        await SelectDocumentAsync(document);
+        _pendingFragment = fragment;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public async Task ToggleTaskListItem(int taskIndex, bool isChecked)
+    {
+        if (_selectedPath is null || taskIndex < 0)
+        {
+            return;
+        }
+
+        var source = CurrentSource;
+        var taskPattern = new System.Text.RegularExpressions.Regex(
+            @"^(\s*(?:[-*+]|\d+\.)\s+\[)[ xX](\].*)$",
+            System.Text.RegularExpressions.RegexOptions.Multiline);
+        var currentTask = 0;
+        var updatedSource = taskPattern.Replace(source, match =>
+        {
+            if (currentTask++ != taskIndex)
+            {
+                return match.Value;
+            }
+
+            return $"{match.Groups[1].Value}{(isChecked ? "x" : " ")}{match.Groups[2].Value}";
+        }, 1);
+
+        _editedSources[_selectedPath] = updatedSource;
+        _editingSource = updatedSource;
+        _renderedMarkdown = RenderMarkdown(updatedSource);
+        _readerNeedsRefresh = true;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public async Task OpenSearchAsync()
+    {
+        if (_selectedDocument is null)
+        {
+            return;
+        }
+
+        if (_sourceMode)
+        {
+            SaveCurrentSource();
+            _renderedMarkdown = RenderMarkdown(CurrentSource);
+            _sourceMode = false;
+        }
+        _searchOpen = true;
+        _readerNeedsRefresh = true;
+        _focusSearchOnRender = true;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public async Task CloseSearchAsync()
+    {
+        _searchOpen = false;
+        _searchQuery = string.Empty;
+        _searchCount = 0;
+        _searchIndex = 0;
+        await JS.InvokeVoidAsync("markdownViewer.clearSearch");
+        await InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public async Task ChangeZoomAsync(int delta)
+    {
+        _zoom = Math.Clamp(delta == 0 ? 100 : _zoom + delta, 70, 180);
+        await JS.InvokeVoidAsync("markdownViewer.setZoom", _zoom);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public async Task PrintAsync()
+    {
+        if (_sourceMode)
+        {
+            await SetSourceModeAsync(false);
+        }
+        await JS.InvokeVoidAsync("markdownViewer.print");
+    }
+
+    [JSInvokable]
+    public async Task NavigateSearchAsync(int direction)
+    {
+        var position = await JS.InvokeAsync<int[]>("markdownViewer.navigateSearch", direction);
+        _searchIndex = position[0];
+        _searchCount = position[1];
+        await InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public async Task SearchChangedAsync()
+    {
+        _searchCount = await JS.InvokeAsync<int>("markdownViewer.search", _searchQuery);
+        _searchIndex = _searchCount > 0 ? 1 : 0;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task HandleSearchKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Escape")
+        {
+            await CloseSearchAsync();
+        }
+        else if (args.Key == "Enter")
+        {
+            await NavigateSearchAsync(args.ShiftKey ? -1 : 1);
+        }
+    }
+
+    private async Task SetSourceModeAsync(bool sourceMode)
+    {
+        if (_sourceMode == sourceMode || _selectedDocument is null)
+        {
+            return;
+        }
+
+        if (_sourceMode)
+        {
+            SaveCurrentSource();
+        }
+
+        if (!sourceMode)
+        {
+            _renderedMarkdown = RenderMarkdown(CurrentSource);
+            _readerNeedsRefresh = true;
+        }
+        _sourceMode = sourceMode;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task SelectDocumentAsync(MarkdownDocument document, bool saveScroll = true)
+    {
+        if (document.Path == _selectedPath)
+        {
+            if (saveScroll)
+            {
+                _notice = null;
+            }
+            return;
+        }
+
+        if (saveScroll && _selectedPath is not null)
+        {
+            SaveCurrentSource();
+            _scrollPositions[_selectedPath] =
+                await JS.InvokeAsync<double>("markdownViewer.getReaderScrollTop");
+        }
+
+        _selectedPath = document.Path;
+        _editingSource = CurrentSource;
+        _renderedMarkdown = RenderMarkdown(CurrentSource);
+        _pendingScrollPath = document.Path;
+        _pendingFragment = string.Empty;
+        _readerNeedsRefresh = true;
+        _notice = null;
+        _error = null;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task FilterChangedAsync()
+    {
+        var filtered = FilteredDocuments.ToList();
+        if (filtered.All(document => document.Path != _selectedPath))
+        {
+            if (filtered.Count > 0)
+            {
+                await SelectDocumentAsync(filtered[0]);
+            }
+            else
+            {
+                if (_selectedPath is not null)
+                {
+                    _scrollPositions[_selectedPath] =
+                        await JS.InvokeAsync<double>("markdownViewer.getReaderScrollTop");
+                }
+                _selectedPath = null;
+                _renderedMarkdown = string.Empty;
+                _pendingScrollPath = null;
+            }
+        }
+    }
+
+    private async Task ClearFilterAsync()
+    {
+        _filter = string.Empty;
+        await FilterChangedAsync();
+    }
+
+    private void DismissError() => _error = null;
+
+    private void DismissFolderAccessError()
+    {
+        _folderAccessTitle = null;
+        _folderAccessReason = null;
+        _folderAccessDetail = null;
+    }
+
+    private string? _pendingFragment;
+
+    private string CurrentSource =>
+        _selectedPath is not null && _editedSources.TryGetValue(_selectedPath, out var source)
+            ? source
+            : _selectedDocument?.Content ?? string.Empty;
+
+    private void SaveCurrentSource()
+    {
+        if (_selectedPath is not null)
+        {
+            _editedSources[_selectedPath] = _editingSource;
+        }
+    }
+
+    private static string RenderMarkdown(string source)
+    {
+        var sanitizer = new HtmlSanitizer();
+        sanitizer.AllowedTags.Add("input");
+        sanitizer.AllowedAttributes.Add("type");
+        sanitizer.AllowedAttributes.Add("disabled");
+        sanitizer.AllowedAttributes.Add("checked");
+        return sanitizer.Sanitize(Markdown.ToHtml(source, MarkdownPipeline));
+    }
+
+    private static bool IsMarkdownPath(string path) =>
+        path.EndsWith(".md", StringComparison.OrdinalIgnoreCase) ||
+        path.EndsWith(".markdown", StringComparison.OrdinalIgnoreCase);
+
+    private static string GetName(string path)
+    {
+        var normalized = path.Replace('\\', '/').TrimEnd('/');
+        var separator = normalized.LastIndexOf('/');
+        return separator >= 0 ? normalized[(separator + 1)..] : normalized;
+    }
+
+    private static string GetParentPath(string path)
+    {
+        var normalized = path.Replace('\\', '/').TrimEnd('/');
+        var separator = normalized.LastIndexOf('/');
+        return separator >= 0 ? normalized[..separator] : "In this folder";
+    }
+
+    public void Dispose() => _dotNetReference?.Dispose();
+
+    private sealed record MarkdownDocument(string Path, string Name, string ParentPath, string Content);
+
+    public sealed record PickedMarkdownFile(string Name, string Path, string Content);
+
+    public sealed record PickedMarkdownAsset(string Path, string Url);
+
+}

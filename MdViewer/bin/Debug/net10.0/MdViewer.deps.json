@@ -1,0 +1,179 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v10.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v10.0": {
+      "MdViewer/1.0.0": {
+        "dependencies": {
+          "MdViewer.Client": "1.0.0",
+          "Microsoft.AspNetCore.Components.WebAssembly.Server": "10.0.13"
+        },
+        "runtime": {
+          "MdViewer.dll": {}
+        }
+      },
+      "AngleSharp/1.7.2": {
+        "runtime": {
+          "lib/net10.0/AngleSharp.dll": {
+            "assemblyVersion": "1.7.2.0",
+            "fileVersion": "1.7.2.0"
+          }
+        }
+      },
+      "AngleSharp.Css/1.0.2": {
+        "dependencies": {
+          "AngleSharp": "1.7.2"
+        },
+        "runtime": {
+          "lib/net10.0/AngleSharp.Css.dll": {
+            "assemblyVersion": "1.0.2.0",
+            "fileVersion": "1.0.2.0"
+          }
+        }
+      },
+      "HtmlSanitizer/9.2.1039": {
+        "dependencies": {
+          "AngleSharp": "1.7.2",
+          "AngleSharp.Css": "1.0.2"
+        },
+        "runtime": {
+          "lib/net8.0/HtmlSanitizer.dll": {
+            "assemblyVersion": "9.0.0.0",
+            "fileVersion": "9.2.1039.0"
+          }
+        }
+      },
+      "Markdig/1.4.2": {
+        "runtime": {
+          "lib/net10.0/Markdig.dll": {
+            "assemblyVersion": "1.4.0.0",
+            "fileVersion": "1.4.2.0"
+          }
+        }
+      },
+      "Microsoft.AspNetCore.Components.WebAssembly/10.0.13": {
+        "dependencies": {
+          "Microsoft.JSInterop.WebAssembly": "10.0.13"
+        },
+        "runtime": {
+          "lib/net10.0/Microsoft.AspNetCore.Components.WebAssembly.dll": {
+            "assemblyVersion": "10.0.13.0",
+            "fileVersion": "10.0.1326.50504"
+          }
+        }
+      },
+      "Microsoft.AspNetCore.Components.WebAssembly.Server/10.0.13": {
+        "dependencies": {
+          "Microsoft.AspNetCore.Components.WebAssembly": "10.0.13"
+        },
+        "runtime": {
+          "lib/net10.0/Microsoft.AspNetCore.Components.WebAssembly.Server.dll": {
+            "assemblyVersion": "10.0.13.0",
+            "fileVersion": "10.0.1326.50504"
+          }
+        }
+      },
+      "Microsoft.DotNet.HotReload.WebAssembly.Browser/10.0.201": {
+        "runtime": {
+          "lib/net10.0/Microsoft.DotNet.HotReload.WebAssembly.Browser.dll": {
+            "assemblyVersion": "10.0.201.0",
+            "fileVersion": "10.2.126.15422"
+          }
+        }
+      },
+      "Microsoft.JSInterop.WebAssembly/10.0.13": {
+        "runtime": {
+          "lib/net10.0/Microsoft.JSInterop.WebAssembly.dll": {
+            "assemblyVersion": "10.0.13.0",
+            "fileVersion": "10.0.1326.50504"
+          }
+        }
+      },
+      "MdViewer.Client/1.0.0": {
+        "dependencies": {
+          "HtmlSanitizer": "9.2.1039",
+          "Markdig": "1.4.2",
+          "Microsoft.AspNetCore.Components.WebAssembly": "10.0.13",
+          "Microsoft.DotNet.HotReload.WebAssembly.Browser": "10.0.201"
+        },
+        "runtime": {
+          "MdViewer.Client.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "MdViewer/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "AngleSharp/1.7.2": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-r1rb5Qo/0KPzmP0nbSiXPDVfh4Ctu0B+y1RyyUq73g4sgAmEW7q10RDyTq2ZsILwtO9O2LAvMrUles7eD4zz1g==",
+      "path": "anglesharp/1.7.2",
+      "hashPath": "anglesharp.1.7.2.nupkg.sha512"
+    },
+    "AngleSharp.Css/1.0.2": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-XeBxh0h/73+MWFsGfeMwiK7xbzAK3YeHFdUIrMH1P90amIrDFD/vUDIrPlF3CixqaMH5MRIUvT6Ux+2zvhJ3SA==",
+      "path": "anglesharp.css/1.0.2",
+      "hashPath": "anglesharp.css.1.0.2.nupkg.sha512"
+    },
+    "HtmlSanitizer/9.2.1039": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-PKxy1hYknAij8YlHCC2a9GSqzUd4bh3IvY+abJBvOH1FKcZpbyafEHtdFcXQBt12Y7hNPkNEOP6Qa7uKNSs/yA==",
+      "path": "htmlsanitizer/9.2.1039",
+      "hashPath": "htmlsanitizer.9.2.1039.nupkg.sha512"
+    },
+    "Markdig/1.4.2": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-C5jl2hFLK5KHxWWWO6JxfuQCRirW5DGnCn9IEhJ7xgBMVnd+PjRNdAKO2C6YHpkOtVvZMJ8Zbma7B+CDi+hl+g==",
+      "path": "markdig/1.4.2",
+      "hashPath": "markdig.1.4.2.nupkg.sha512"
+    },
+    "Microsoft.AspNetCore.Components.WebAssembly/10.0.13": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-w3V2ij4WptDXOLLu78o3/SIqHIVoW6uzCjKZzSr4hTJFKvv8/79YhwRyyGonktM+qP8hrFvBVNCQa51ZpoJ6Cw==",
+      "path": "microsoft.aspnetcore.components.webassembly/10.0.13",
+      "hashPath": "microsoft.aspnetcore.components.webassembly.10.0.13.nupkg.sha512"
+    },
+    "Microsoft.AspNetCore.Components.WebAssembly.Server/10.0.13": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-EeFVBmuxdbvNcjty7Jkvck9LG1hGjFnRaJUKDrGfoMKmHJF7iRXcp4rx85Qhm+JmRKKIm4vZMUdv2i2KNsR5JQ==",
+      "path": "microsoft.aspnetcore.components.webassembly.server/10.0.13",
+      "hashPath": "microsoft.aspnetcore.components.webassembly.server.10.0.13.nupkg.sha512"
+    },
+    "Microsoft.DotNet.HotReload.WebAssembly.Browser/10.0.201": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-4EAMH3CqtVwVm7Sx4DnNtZj/J0b+A1YGcTnCL6prhQ8ZHlwbVtZ3RmSyJdi85mSnLl+u94aVr8fElRGkjZkKmw==",
+      "path": "microsoft.dotnet.hotreload.webassembly.browser/10.0.201",
+      "hashPath": "microsoft.dotnet.hotreload.webassembly.browser.10.0.201.nupkg.sha512"
+    },
+    "Microsoft.JSInterop.WebAssembly/10.0.13": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-kh68RQ3KmgKSsIpkQetbuHxxLEsIkjaJ+GfJhGn7NQCgrT067JXGmbCzXM42uiPcdXW5dJ8S5AKwJcyRDJFWzQ==",
+      "path": "microsoft.jsinterop.webassembly/10.0.13",
+      "hashPath": "microsoft.jsinterop.webassembly.10.0.13.nupkg.sha512"
+    },
+    "MdViewer.Client/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}
