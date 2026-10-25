@@ -22,6 +22,16 @@ Install the .NET 10 SDK and Docker Desktop, then run this PowerShell script from
 
 The script publishes the app locally, builds its runtime image, and starts Nginx as a reverse proxy. Open `http://localhost:8050`. To redeploy, run the script again with the same port.
 
+## Publish with GitHub Pages
+
+The repository includes a GitHub Actions workflow that publishes the Blazor WebAssembly client as a static site whenever changes are pushed to `main`. To enable it:
+
+1. In the repository's **Settings → Pages**, set the build and deployment source to **GitHub Actions**.
+2. Push to `main`, or run **Deploy to GitHub Pages** from the **Actions** tab.
+3. Open `https://rbignacio0.github.io/MDVw/` after the deployment workflow succeeds.
+
+The workflow configures the repository subpath and includes a not-found fallback for client-side routes. GitHub Pages serves the static browser app; it does not run the ASP.NET Core host.
+
 ## Choose a folder
 
 Select **Choose a folder** and grant read access in the browser's folder picker. The viewer searches the selected folder and its subfolders for `.md` and `.markdown` files.

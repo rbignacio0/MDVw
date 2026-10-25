@@ -1,0 +1,65 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Publish Blazor WebAssembly app
+        run: dotnet publish MdViewer.Client/MdViewer.Client.csproj --configuration Release --output "$RUNNER_TEMP/mdviewer-publish" -p:PagesStandalone=true
+
+      - name: Prepare Pages files
+        run: |
+          site="$RUNNER_TEMP/mdviewer-publish/wwwroot"
+          repo_name="${GITHUB_REPOSITORY#*/}"
+
+          test -f "$site/index.html"
+          sed -i "s|<base href=\"/\" />|<base href=\"/$repo_name/\" />|" "$site/index.html"
+          grep -Fq "<base href=\"/$repo_name/\" />" "$site/index.html"
+          cp MdViewer/wwwroot/app.css "$site/app.css"
+          cp MdViewer/wwwroot/favicon.png "$site/favicon.png"
+          mkdir -p "$site/lib"
+          cp -R MdViewer/wwwroot/lib/bootstrap "$site/lib/bootstrap"
+          cp "$site/index.html" "$site/404.html"
+          touch "$site/.nojekyll"
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ runner.temp }}/mdviewer-publish/wwwroot
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

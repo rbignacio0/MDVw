@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("MdViewer.Client")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+30f9d678bdb05bcf9854785016715f8ebea6343f")]
 [assembly: System.Reflection.AssemblyProductAttribute("MdViewer.Client")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MdViewer.Client")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
